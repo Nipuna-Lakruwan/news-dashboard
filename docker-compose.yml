@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  # SERVICE 1: Our Python App
+  news-app:
+    build: .             # Build from the Dockerfile in this folder
+    ports:
+      - "8501:8501"      # Open port 8501 to your laptop
+    depends_on:
+      - redis-db         # Wait for Redis to start before starting app
+
+  # SERVICE 2: The Redis Database
+  redis-db:
+    image: redis:alpine  # Download the official Redis image (tiny version)
+    ports:
+      - "6379:6379"      # Standard Redis port
