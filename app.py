@@ -4,46 +4,58 @@ import time
 import json
 from prometheus_client import start_http_server, Counter
 
-# --- MONITORING CONFIG ---
-# These are the "Sensors" we are installing
-CACHE_HITS = Counter('news_cache_hits_total', 'Total number of cache hits')
-CACHE_MISSES = Counter('news_cache_misses_total', 'Total number of cache misses')
-
-# Start the Metrics Server on Port 8000 so Prometheus can scrape it
-# We use a check to ensure it only starts once
-if 'metrics_started' not in st.session_state:
+# --- METRICS CONFIGURATION ---
+# Use cache_resource to ensure metrics are initialized only once
+@st.cache_resource
+def init_metrics():
+    hits = Counter('news_cache_hits_total', 'Total number of cache hits')
+    misses = Counter('news_cache_misses_total', 'Total number of cache misses')
+    
+    # Start Prometheus metrics server on port 8000
     start_http_server(8000)
-    st.session_state['metrics_started'] = True
+    return hits, misses
 
-# --- APP CONFIG ---
+CACHE_HITS, CACHE_MISSES = init_metrics()
+
+# --- DATABASE CONNECTION ---
+# Connect to Redis service defined in docker-compose
 r = redis.Redis(host='redis-db', port=6379, decode_responses=True)
 
-st.title("📰 Lanka News (Monitored)")
-st.caption("Now with Prometheus Tracking 🕵️‍♂️")
+# --- UI SETUP ---
+st.title("📰 Lanka News Dashboard")
+st.caption("Microservices Architecture Demo with Prometheus Monitoring")
 
+# Mock API Data
 news_data = {
-    "headline": "DevOps Engineers in High Demand in Sri Lanka",
-    "breaking": "Weather Sentinel Bot saves construction site from rain!",
-    "sports": "Cricket: Sri Lanka wins the series!"
+    "headline": "DevOps adoption rising in Sri Lankan tech sector",
+    "breaking": "Weather Sentinel issues heavy rain alert for Western Province",
+    "sports": "Cricket: Sri Lanka secures series victory!"
 }
 
-def get_news():
-    cached_news = r.get("lanka_news")
+def fetch_news():
+    # Attempt to retrieve data from Redis cache
+    cached_data = r.get("lanka_news")
     
-    if cached_news:
-        # Increment the "Hit" Counter
+    if cached_data:
         CACHE_HITS.inc()
-        st.success("⚡ Loaded from Redis Cache (Super Fast!)")
-        return json.loads(cached_news)
+        st.success("⚡ Cache HIT: Loaded from Redis (Latency: <10ms)")
+        return json.loads(cached_data)
     
     else:
-        # Increment the "Miss" Counter
         CACHE_MISSES.inc()
-        st.warning("🐢 Cache Miss! Fetching from 'Internet'...")
+        st.warning("🐢 Cache MISS: Fetching from upstream API...")
+        
+        # Simulate API latency
         time.sleep(2) 
-        r.set("lanka_news", json.dumps(news_data), ex=10) # Reduced to 10s for testing
+        
+        # Store in Redis with 10-second TTL (Time To Live)
+        r.set("lanka_news", json.dumps(news_data), ex=10)
         return news_data
 
-if st.button('Refresh News'):
-    data = get_news()
-    st.write(data)
+# Main Execution
+if st.button('Refresh Feed'):
+    data = fetch_news()
+    st.divider()
+    st.markdown(f"### {data['headline']}")
+    st.error(f"🚨 **BREAKING:** {data['breaking']}")
+    st.info(f"🏏 **Sports:** {data['sports']}")
