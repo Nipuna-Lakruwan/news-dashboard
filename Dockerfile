@@ -4,8 +4,8 @@ FROM python:3.9-slim
 # Working Directory
 WORKDIR /app
 
-# Install dependencies directly (skipping requirements.txt for speed today)
-RUN pip install streamlit redis
+# Added prometheus-client for monitoring
+RUN pip install streamlit redis prometheus-client
 
 # Copy the app code
 COPY app.py .
