@@ -1,16 +1,33 @@
 version: '3.8'
 
 services:
-  # SERVICE 1: Our Python App
+  # 1. The App
   news-app:
-    build: .             # Build from the Dockerfile in this folder
+    build: .
     ports:
-      - "8501:8501"      # Open port 8501 to your laptop
+      - "8501:8501" # Streamlit UI
+      - "8000:8000" # Metrics Port
     depends_on:
-      - redis-db         # Wait for Redis to start before starting app
+      - redis-db
 
-  # SERVICE 2: The Redis Database
+  # 2. The Database
   redis-db:
-    image: redis:alpine  # Download the official Redis image (tiny version)
+    image: redis:alpine
     ports:
-      - "6379:6379"      # Standard Redis port
+      - "6379:6379"
+
+  # 3. The Spy (Prometheus)
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  # 4. The Dashboard (Grafana)
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
