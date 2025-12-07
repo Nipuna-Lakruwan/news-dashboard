@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s # Check for new data every 5 seconds
+
+scrape_configs:
+  - job_name: 'lanka_news_app'
+    static_configs:
+      - targets: ['news-app:8000'] # Connects to our Python app on port 8000
