@@ -2,17 +2,25 @@ import streamlit as st
 import redis
 import time
 import json
-import os
+from prometheus_client import start_http_server, Counter
 
-# --- CONFIGURATION ---
-# "redis-db" is the HOSTNAME. In Docker Compose, this is the name of the service.
-# We do not use IP addresses (like 192.168.x.x). We use names.
+# --- MONITORING CONFIG ---
+# These are the "Sensors" we are installing
+CACHE_HITS = Counter('news_cache_hits_total', 'Total number of cache hits')
+CACHE_MISSES = Counter('news_cache_misses_total', 'Total number of cache misses')
+
+# Start the Metrics Server on Port 8000 so Prometheus can scrape it
+# We use a check to ensure it only starts once
+if 'metrics_started' not in st.session_state:
+    start_http_server(8000)
+    st.session_state['metrics_started'] = True
+
+# --- APP CONFIG ---
 r = redis.Redis(host='redis-db', port=6379, decode_responses=True)
 
-st.title("📰 Lanka News Dashboard")
-st.subheader("DevOps Caching Demo")
+st.title("📰 Lanka News (Monitored)")
+st.caption("Now with Prometheus Tracking 🕵️‍♂️")
 
-# Fake News Data
 news_data = {
     "headline": "DevOps Engineers in High Demand in Sri Lanka",
     "breaking": "Weather Sentinel Bot saves construction site from rain!",
@@ -20,25 +28,22 @@ news_data = {
 }
 
 def get_news():
-    # 1. Check if news is in Redis Cache
     cached_news = r.get("lanka_news")
     
     if cached_news:
+        # Increment the "Hit" Counter
+        CACHE_HITS.inc()
         st.success("⚡ Loaded from Redis Cache (Super Fast!)")
         return json.loads(cached_news)
     
     else:
-        # 2. If not in cache, simulate a "Slow Fetch"
-        st.warning("🐢 Cache Miss! Fetching from 'Internet' (Slow)...")
-        time.sleep(3) # Simulates a 3-second delay
-        
-        # 3. Save to Redis for next time (Expires in 60 seconds)
-        r.set("lanka_news", json.dumps(news_data), ex=60)
+        # Increment the "Miss" Counter
+        CACHE_MISSES.inc()
+        st.warning("🐢 Cache Miss! Fetching from 'Internet'...")
+        time.sleep(2) 
+        r.set("lanka_news", json.dumps(news_data), ex=10) # Reduced to 10s for testing
         return news_data
 
 if st.button('Refresh News'):
     data = get_news()
-    st.write("---")
-    st.write(f"**Headline:** {data['headline']}")
-    st.write(f"**Breaking:** {data['breaking']}")
-    st.write(f"**Sports:** {data['sports']}")
+    st.write(data)
