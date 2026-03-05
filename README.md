@@ -35,8 +35,7 @@ The application consists of two services running in a private Docker network:
    ```bash
    git clone https://github.com/Nipuna-Lakruwan/news-dashboard.git
    cd news-dashboard
-
-````
+   ```
 
 2.  **Start the application**:
 
